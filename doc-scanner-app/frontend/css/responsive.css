@@ -1,0 +1,502 @@
+/* ==========================================================================
+   DocuScan Pro - Responsive Styles
+   Designed for optimal viewing across all devices
+   ========================================================================== */
+
+/* Base Mobile-First Approach */
+:root {
+    --header-height-mobile: 70px;
+    --content-spacing-mobile: 15px;
+}
+
+/* ===== Full Height Layout & Footer Positioning ===== */
+html, body {
+    height: 100%;
+    margin: 0;
+}
+
+.app-container {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-footer {
+    margin-top: auto;
+}
+
+/* iOS-specific height fixes */
+@supports (-webkit-touch-callout: none) {
+    html, body {
+        height: -webkit-fill-available;
+    }
+    
+    .app-container {
+        min-height: -webkit-fill-available;
+    }
+    
+    .app-footer {
+        padding-bottom: max(var(--space-md), env(safe-area-inset-bottom, 20px));
+    }
+}
+/* Responsive Typography Scale */
+@media (max-width: 768px) {
+    html {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    html {
+        font-size: 13px;
+    }
+}
+
+/* Container adjustments */
+.app-container {
+    padding: var(--space-md);
+}
+
+@media (max-width: 768px) {
+    .app-container {
+        padding: var(--space-sm);
+    }
+}
+
+/* ===== Header Responsive Styles ===== */
+@media (max-width: 768px) {
+    .app-header {
+        padding: var(--space-md) 0;
+        margin-bottom: var(--space-lg);
+    }
+    
+    .logo-container i {
+        font-size: 2rem;
+    }
+    
+    .app-header h1 {
+        font-size: 1.8rem;
+    }
+    
+    .tagline {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .app-header {
+        padding: var(--space-sm) 0;
+        margin-bottom: var(--space-md);
+    }
+    
+    .logo-container i {
+        font-size: 1.8rem;
+    }
+    
+    .app-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .tagline {
+        font-size: 0.8rem;
+    }
+}
+
+/* ===== Search Container Responsive Styles ===== */
+@media (max-width: 768px) {
+    .search-container {
+        padding: var(--space-md);
+    }
+    
+    .search-box {
+        gap: var(--space-sm);
+    }
+    
+    .search-box input {
+        padding: var(--space-sm) var(--space-md);
+    }
+    
+    /* Hide "Search" text on button, keep only icon */
+    .search-box button {
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        overflow: hidden;
+    }
+    
+    .search-box button i {
+        margin: 0;
+        font-size: 1.2rem;
+    }
+    
+    /* Hide the text completely */
+    .search-box button:not(i) {
+        font-size: 0;
+        line-height: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .search-container {
+        padding: var(--space-sm);
+        margin-bottom: var(--space-md);
+    }
+    
+    .search-box {
+        flex-wrap: nowrap;
+    }
+    
+    .search-box input {
+        padding: var(--space-sm);
+        font-size: 0.9rem;
+    }
+    
+    .search-box button {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+    }
+    
+    .search-results select {
+        padding: var(--space-sm);
+        font-size: 0.9rem;
+    }
+}
+/* ===== Workflow Indicator Responsive Styles ===== */
+@media (max-width: 768px) {
+    .workflow-indicator {
+        padding: var(--space-md);
+        margin-bottom: var(--space-lg);
+    }
+    
+    .workflow-step i {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
+    
+    .workflow-step span {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .workflow-step span {
+        display: none;
+    }
+    
+    .workflow-step {
+        padding-bottom: var(--space-xs);
+    }
+    
+    .workflow-step i {
+        margin-bottom: 0;
+    }
+    
+    .workflow-step:after {
+        top: 15px;
+    }
+    
+    /* Add labels back when active */
+    .workflow-step.active span {
+        display: block;
+        position: absolute;
+        top: 35px;
+        font-size: 0.7rem;
+        white-space: nowrap;
+    }
+}
+
+/* ===== Section Card Responsive Styles ===== */
+@media (max-width: 768px) {
+    .section-card {
+        padding: var(--space-lg);
+        margin-bottom: var(--space-lg);
+    }
+    
+    .section-header h2 {
+        font-size: 1.3rem;
+    }
+    
+    .section-description {
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .section-card {
+        padding: var(--space-md);
+        margin-bottom: var(--space-md);
+    }
+    
+    .section-header h2 {
+        font-size: 1.1rem;
+    }
+    
+    .section-description {
+        font-size: 0.8rem;
+    }
+}
+
+/* ===== Camera & Preview Responsive Styles ===== */
+@media (max-width: 768px) {
+    .camera-container,
+    .preview-container {
+        padding-bottom: 90%; /* More vertical space on mobile */
+    }
+    
+    .document-overlay {
+        top: 10%;
+        left: 5%;
+        width: 90%;
+        height: 80%;
+    }
+    
+    .corner {
+        width: 15px;
+        height: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .camera-container,
+    .preview-container {
+        padding-bottom: 120%; /* Even more vertical space on small devices */
+    }
+    
+    .corner {
+        width: 12px;
+        height: 12px;
+        border-width: 2px;
+    }
+}
+
+/* ===== Button Responsive Styles ===== */
+@media (max-width: 768px) {
+    .btn {
+        padding: var(--space-sm) var(--space-md);
+        font-size: 0.9rem;
+    }
+    
+    .action-buttons {
+        gap: var(--space-sm);
+    }
+}
+
+@media (max-width: 480px) {
+    .btn {
+        padding: var(--space-sm) var(--space-md);
+        font-size: 0.85rem;
+        width: 100%;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+}
+
+/* ===== Empty State Responsive Styles ===== */
+@media (max-width: 768px) {
+    .empty-state-content {
+        padding: var(--space-xl) 0;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: var(--space-md);
+    }
+    
+    .empty-state-content h2 {
+        font-size: 1.3rem;
+    }
+    
+    .empty-state-content p {
+        font-size: 0.9rem;
+        max-width: 320px;
+    }
+}
+
+@media (max-width: 480px) {
+    .empty-state-content {
+        padding: var(--space-lg) 0;
+    }
+    
+    .empty-icon {
+        font-size: 2.5rem;
+    }
+    
+    .empty-state-content h2 {
+        font-size: 1.1rem;
+    }
+    
+    .empty-state-content p {
+        font-size: 0.85rem;
+        max-width: 280px;
+    }
+}
+
+/* ===== Footer Responsive Styles ===== */
+@media (max-width: 768px) {
+    .app-footer {
+        padding: var(--space-lg) 0;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .app-footer {
+        padding: var(--space-md) 0;
+        font-size: 0.75rem;
+    }
+    
+    .app-footer a {
+        display: block;
+        margin: var(--space-xs) 0;
+    }
+}
+
+/* ===== Alert Responsive Styles ===== */
+@media (max-width: 768px) {
+    .floating-alert {
+        max-width: 320px;
+        padding: var(--space-sm) var(--space-md);
+    }
+    
+    .floating-alert i {
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .floating-alert {
+        left: 10px;
+        right: 10px;
+        max-width: calc(100% - 20px);
+        top: 10px;
+    }
+}
+
+/* ===== Landscape Mode Optimizations ===== */
+@media (max-height: 500px) and (orientation: landscape) {
+    .app-header {
+        padding: var(--space-xs) 0;
+    }
+    
+    .logo-container {
+        display: none;
+    }
+    
+    .tagline {
+        display: none;
+    }
+    
+    .workflow-indicator {
+        margin-bottom: var(--space-sm);
+        padding: var(--space-xs) var(--space-md);
+    }
+    
+    .workflow-step span {
+        display: none;
+    }
+    
+    .section-card {
+        padding: var(--space-sm);
+    }
+    
+    .camera-container,
+    .preview-container {
+        padding-bottom: 50%;
+    }
+    
+    .section-header {
+        margin-bottom: var(--space-xs);
+    }
+    
+    .section-description {
+        display: none;
+    }
+}
+
+/* ===== Custom Animation Adjustments for Mobile ===== */
+@media (max-width: 768px) {
+    .fade-in,
+    .slide-in-right,
+    .slide-in-left,
+    .slide-in-up {
+        animation-duration: 0.3s; /* Faster animations on mobile */
+    }
+    
+    /* Reduce animation intensity on mobile for better performance */
+    .pulse {
+        animation: pulse 3s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.03);
+        }
+    }
+}
+
+/* Prefer reduced motion accessibility option */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ===== Dark Mode Support ===== */
+@media (prefers-color-scheme: dark) {
+    .app-container {
+        background-color: var(--bg-dark);
+    }
+    
+    .app-header h1 {
+        color: var(--text-light);
+    }
+    
+    .tagline {
+        color: var(--gray-400);
+    }
+    
+    .section-card {
+        background-color: #2a2a2a;
+    }
+    
+    .section-header h2 {
+        color: var(--text-light);
+    }
+    
+    .empty-state-content h2 {
+        color: var(--gray-300);
+    }
+    
+    .search-results select {
+        background-color: #2a2a2a;
+        color: var(--text-light);
+    }
+    
+    .floating-alert {
+        background-color: #2a2a2a;
+        color: var(--text-light);
+    }
+}

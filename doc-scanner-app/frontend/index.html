@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Scanner App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+    <div class="app-container">
+        <div class="floating-alert" id="app-alert">
+            <i class="fa-solid fa-circle-info"></i>
+            <span id="alert-message">Welcome to the Document Scanner</span>
+        </div>
+        
+        <header class="app-header">
+            <div class="logo-container">
+                <i class="fa-solid fa-file-scan animated-icon"></i>
+                <h1>DocuScan Pro</h1>
+            </div>
+            <p class="tagline">Professional document scanning solution</p>
+        </header>
+        
+        <div class="search-container">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="rfc-search" placeholder="Search by RFC..." autocomplete="off">
+                <button id="search-button" class="btn btn-primary">
+                    <i class="fa-solid fa-search"></i>
+                    <span class="search-text">Search</span>
+                </button>
+            </div>
+            
+            <div class="search-results" id="search-results-container">
+                <select id="search-results" class="hidden">
+                    <option value="" disabled selected>Select a match...</option>
+                </select>
+                <div class="search-info">
+                    <span id="selected-rfc-info"></span>
+                </div>
+            </div>
+        </div>
+        
+        <main class="app-main">
+            <div class="workflow-indicator">
+                <div class="workflow-step active" id="step-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <span>Search</span>
+                </div>
+                <div class="workflow-step" id="step-select">
+                    <i class="fa-solid fa-list"></i>
+                    <span>Select</span>
+                </div>
+                <div class="workflow-step" id="step-scan">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>Scan</span>
+                </div>
+                <div class="workflow-step" id="step-process">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <span>Process</span>
+                </div>
+            </div>
+            
+            <section id="camera-section" class="section-card hidden">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-camera"></i> Capture Document</h2>
+                    <p class="section-description">Position your document within the frame for best results</p>
+                </div>
+                <div class="camera-container">
+                    <video id="camera" autoplay></video>
+                    <div class="document-overlay">
+                        <div class="corner top-left"></div>
+                        <div class="corner top-right"></div>
+                        <div class="corner bottom-left"></div>
+                        <div class="corner bottom-right"></div>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button id="capture-button" class="btn btn-primary">
+                        <i class="fa-solid fa-camera"></i> Capture
+                    </button>
+                </div>
+            </section>
+            
+            <section id="preview-section" class="section-card hidden">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-eye"></i> Document Preview</h2>
+                    <p class="section-description">Review and confirm your document scan</p>
+                </div>
+                <div class="preview-container">
+                    <canvas id="preview-canvas"></canvas>
+                </div>
+                <div class="action-buttons">
+                    <button id="retake-button" class="btn btn-secondary">
+                        <i class="fa-solid fa-rotate-left"></i> Retake
+                    </button>
+                    <button id="process-button" class="btn btn-primary">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Process Document
+                    </button>
+                </div>
+            </section>
+            
+            <section id="empty-state" class="section-card">
+                <div class="empty-state-content">
+                    <i class="fa-solid fa-file-circle-exclamation empty-icon"></i>
+                    <h2>Start by Searching a RFC</h2>
+                    <p>Enter a RFC in the search box above to begin the document scanning process</p>
+                </div>
+            </section>
+        </main>
+        
+        <footer class="app-footer">
+            <p>&copy; 2025 DocuScan Pro | <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a></p>
+        </footer>
+    </div>
+    
+    <script src="js/app.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/document-detection.js"></script>
+    <script src="js/search.js"></script>
+</body>
+</html>
