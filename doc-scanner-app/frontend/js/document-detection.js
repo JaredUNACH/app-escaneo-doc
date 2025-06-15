@@ -278,7 +278,7 @@ function drawCornerMarkers(ctx, corners, size) {
     });
 }
 
-// Apply perspective correction to the document - MODIFIED FOR NATURAL LOOK
+// Apply perspective correction to the document - RESPETANDO MÁRGENES DEL USUARIO
 function correctPerspective(sourceCanvas, corners) {
     if (!isOpenCvReady()) {
         console.warn('OpenCV not ready, using basic correction');
@@ -286,24 +286,30 @@ function correctPerspective(sourceCanvas, corners) {
     }
     
     try {
+        // IMPORTANTE: Usamos directamente las esquinas proporcionadas por el usuario
+        // sin ninguna modificación automática
         const { topLeft, topRight, bottomRight, bottomLeft } = corners;
+        
+        console.log("Usando esquinas definidas por usuario:", corners);
         
         // Convert source canvas to OpenCV format
         const context = sourceCanvas.getContext('2d');
         const imageData = context.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
         const src = cv.matFromImageData(imageData);
         
-        // MODIFICADO: Usar las dimensiones originales de la imagen en lugar de forzar A4
-        const destWidth = Math.max(
-            Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y),
-            Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y)
-        );
-        const destHeight = Math.max(
-            Math.hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y),
-            Math.hypot(bottomRight.x - topRight.x, bottomRight.y - topRight.y)
+        // Calculamos las dimensiones EXACTAS basadas en las esquinas del usuario
+        // Promediamos los lados opuestos para obtener dimensiones consistentes
+        const destWidth = Math.round(
+            (Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y) +
+             Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y)) / 2
         );
         
-        // Define source points
+        const destHeight = Math.round(
+            (Math.hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y) +
+             Math.hypot(bottomRight.x - topRight.x, bottomRight.y - topRight.y)) / 2
+        );
+        
+        // Define source points - EXACTAMENTE las coordenadas del usuario
         const srcPoints = cv.matFromArray(4, 1, cv.CV_32FC2, [
             topLeft.x, topLeft.y,
             topRight.x, topRight.y,
@@ -311,7 +317,7 @@ function correctPerspective(sourceCanvas, corners) {
             bottomLeft.x, bottomLeft.y
         ]);
         
-        // Define destination points manteniendo proporción natural
+        // Define destination points para un rectángulo perfecto
         const dstPoints = cv.matFromArray(4, 1, cv.CV_32FC2, [
             0, 0,
             destWidth, 0,
@@ -335,8 +341,8 @@ function correctPerspective(sourceCanvas, corners) {
         // Convert OpenCV mat to ImageData and draw on canvas
         const imgData = new ImageData(
             new Uint8ClampedArray(dst.data),
-            destWidth,
-            destHeight
+            dst.cols,
+            dst.rows
         );
         destContext.putImageData(imgData, 0, 0);
         
@@ -349,11 +355,43 @@ function correctPerspective(sourceCanvas, corners) {
         
         return destCanvas;
     } catch (error) {
-        console.error('Error in perspective correction:', error);
-        return basicCorrectPerspective(sourceCanvas, corners);
+        console.error('Error en corrección de perspectiva:', error);
+        return simpleCropDocument(sourceCanvas, corners);
     }
 }
-
+// Simple crop that EXACTLY respects user-defined corners
+function simpleCropDocument(sourceCanvas, corners) {
+    const { topLeft, topRight, bottomRight, bottomLeft } = corners;
+    
+    // Find the bounding box - EXACTAMENTE como lo definió el usuario
+    const minX = Math.min(topLeft.x, bottomLeft.x);
+    const minY = Math.min(topLeft.y, topRight.y);
+    const maxX = Math.max(topRight.x, bottomRight.x);
+    const maxY = Math.max(bottomLeft.y, bottomRight.y);
+    
+    const width = maxX - minX;
+    const height = maxY - minY;
+    
+    // Create a new canvas for the cropped document
+    const destCanvas = document.createElement('canvas');
+    destCanvas.width = width;
+    destCanvas.height = height;
+    const destContext = destCanvas.getContext('2d');
+    
+    // Just crop the image - SIN MODIFICACIONES automáticas
+    destContext.drawImage(
+        sourceCanvas,
+        minX, minY, width, height,
+        0, 0, width, height
+    );
+    
+    console.log("Recorte simple con esquinas del usuario:", {
+        minX, minY, width, height,
+        corners: corners
+    });
+    
+    return destCanvas;
+}
 // Basic perspective correction as fallback - MODIFIED FOR NATURAL LOOK
 function basicCorrectPerspective(sourceCanvas, corners) {
     const { topLeft, topRight, bottomRight, bottomLeft } = corners;
@@ -406,8 +444,7 @@ window.documentDetection = {
     correctPerspective,
     processDocumentContent,
     enhanceDocument,
-    isOpenCvReady,
-    isDocumentLandscape  // Añadida la función de orientación
+    isOpenCvReady
 };
 // Process document for OCR or other post-processing
 function processDocumentContent(documentImage) {
