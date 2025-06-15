@@ -8,8 +8,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmButton = document.getElementById('confirm-button');
     const previewCanvas = document.getElementById('preview-canvas');
     const documentOverlay = document.querySelector('.document-overlay');
-    const documentCornersElement = document.getElementById('document-corners');
-    const documentDetectedMessage = document.getElementById('document-detected-message');
+    const cornerPoints = document.querySelectorAll('.corner-point');
+    const documentPath = document.getElementById('document-path');
+    const documentEditorMessage = document.getElementById('document-editor-message');
     
     // Add camera flash element
     const cameraFlash = document.createElement('div');
@@ -143,6 +144,35 @@ document.addEventListener('DOMContentLoaded', function() {
         detectDocumentEdges();
     }
     
+    // Ensure correct orientation (portrait/vertical)
+    function ensureVerticalOrientation() {
+        if (!previewCanvas) return;
+        
+        const width = previewCanvas.width;
+        const height = previewCanvas.height;
+        
+        // If width is greater than height, we need to rotate the canvas
+        if (width > height) {
+            console.log('Rotating image to portrait orientation');
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = height;
+            tempCanvas.height = width;
+            
+            const tempContext = tempCanvas.getContext('2d');
+            
+            // Rotate and draw
+            tempContext.translate(height, 0);
+            tempContext.rotate(Math.PI / 2);
+            tempContext.drawImage(previewCanvas, 0, 0);
+            
+            // Copy back to original canvas
+            previewContext.clearRect(0, 0, width, height);
+            previewCanvas.width = height;
+            previewCanvas.height = width;
+            previewContext.drawImage(tempCanvas, 0, 0);
+        }
+    }
+    
     // Detect document edges using OpenCV
     function detectDocumentEdges() {
         if (!previewCanvas) return;
@@ -165,16 +195,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     previewContext.clearRect(0, 0, width, height);
                     previewContext.drawImage(img, 0, 0, width, height);
                     
-                    // Update document corners visualization with draggable corners
-                    updateDocumentCornersDisplay(result.corners);
+                    // Position the corner points
+                    positionCornerPoints(result.corners);
                     
-                    // Add corner drag handlers
-                    initCornerDragging();
+                    // Update document path
+                    updateDocumentPath();
+                    
+                    // Add dark overlay outside document
+                    createDarkOverlay();
                     
                     // Show success message
-                    if (documentDetectedMessage) {
-                        documentDetectedMessage.innerHTML = '<i class="fa-solid fa-check-circle"></i> Document detected - Adjust corners if needed';
-                        documentDetectedMessage.style.backgroundColor = 'rgba(0, 150, 0, 0.5)';
+                    if (documentEditorMessage) {
+                        documentEditorMessage.innerHTML = '<i class="fa-solid fa-check-circle"></i> Document detected - Drag corners to adjust';
                     }
                 };
                 img.src = result.imageData;
@@ -190,120 +222,227 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Update document corners visualization
-    function updateDocumentCornersDisplay(corners) {
-        if (!documentCornersElement) return;
+    // Position corner points based on detected document
+    function positionCornerPoints(corners) {
+        if (!corners || cornerPoints.length !== 4) return;
         
         const { topLeft, topRight, bottomRight, bottomLeft } = corners;
+        const positions = [topLeft, topRight, bottomRight, bottomLeft];
         
-        // Create SVG path for the document outline
-        documentCornersElement.innerHTML = `
-            <svg width="100%" height="100%" style="position:absolute; top:0; left:0;">
-                <path d="
-                    M ${topLeft.x} ${topLeft.y}
-                    L ${topRight.x} ${topRight.y}
-                    L ${bottomRight.x} ${bottomRight.y}
-                    L ${bottomLeft.x} ${bottomLeft.y}
-                    Z
-                " fill="rgba(255, 125, 0, 0.1)" stroke="#ff7d30" stroke-width="3" stroke-dasharray="8" stroke-dashoffset="0"></path>
-                
-                <!-- Interactive corner points -->
-                <circle class="corner-handle" cx="${topLeft.x}" cy="${topLeft.y}" r="12" fill="#ff7d30" stroke="white" stroke-width="2" data-corner="topLeft" />
-                <circle class="corner-handle" cx="${topRight.x}" cy="${topRight.y}" r="12" fill="#ff7d30" stroke="white" stroke-width="2" data-corner="topRight" />
-                <circle class="corner-handle" cx="${bottomRight.x}" cy="${bottomRight.y}" r="12" fill="#ff7d30" stroke="white" stroke-width="2" data-corner="bottomRight" />
-                <circle class="corner-handle" cx="${bottomLeft.x}" cy="${bottomLeft.y}" r="12" fill="#ff7d30" stroke="white" stroke-width="2" data-corner="bottomLeft" />
-            </svg>
-        `;
+        // Get container dimensions for percentage calculations
+        const containerWidth = previewCanvas.width;
+        const containerHeight = previewCanvas.height;
+        
+        // Update corner positions
+        cornerPoints.forEach((point, index) => {
+            const cornerPos = positions[index];
+            const percentX = (cornerPos.x / containerWidth) * 100;
+            const percentY = (cornerPos.y / containerHeight) * 100;
+            
+            point.style.left = `${percentX}%`;
+            point.style.top = `${percentY}%`;
+            
+            // Store original positions for dragging
+            point.setAttribute('data-x', cornerPos.x);
+            point.setAttribute('data-y', cornerPos.y);
+            
+            // Add event listeners for dragging
+            point.addEventListener('mousedown', startDrag);
+            point.addEventListener('touchstart', startDrag, { passive: false });
+        });
     }
     
-    // Initialize corner dragging
-    function initCornerDragging() {
-        const cornerHandles = document.querySelectorAll('.corner-handle');
+    // Start dragging a corner point
+    function startDrag(e) {
+        e.preventDefault();
         
-        cornerHandles.forEach(handle => {
-            handle.addEventListener('mousedown', startDrag);
-            handle.addEventListener('touchstart', startDrag, { passive: false });
-        });
+        isDragging = true;
+        activeCorner = e.target;
         
-        function startDrag(e) {
-            e.preventDefault();
-            isDragging = true;
-            activeCorner = e.target.getAttribute('data-corner');
-            
-            // Add event listeners for drag movement
-            document.addEventListener('mousemove', dragCorner);
-            document.addEventListener('touchmove', dragCorner, { passive: false });
-            document.addEventListener('mouseup', stopDrag);
-            document.addEventListener('touchend', stopDrag);
-            
-            // Add active styling to the handle
-            e.target.setAttribute('stroke-width', '3');
-            e.target.setAttribute('r', '14');
+        // Add active class for styling
+        activeCorner.classList.add('dragging');
+        
+        // Add event listeners for drag movement
+        document.addEventListener('mousemove', dragCorner);
+        document.addEventListener('touchmove', dragCorner, { passive: false });
+        document.addEventListener('mouseup', stopDrag);
+        document.addEventListener('touchend', stopDrag);
+    }
+    
+    // Handle dragging a corner point
+    function dragCorner(e) {
+        if (!isDragging || !activeCorner) return;
+        
+        e.preventDefault();
+        
+        // Get coordinates relative to preview container
+        const previewContainer = document.querySelector('.preview-container');
+        const containerRect = previewContainer.getBoundingClientRect();
+        let clientX, clientY;
+        
+        if (e.type === 'touchmove') {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
         }
         
-        function dragCorner(e) {
-            if (!isDragging || !activeCorner) return;
-            
-            e.preventDefault();
-            
-            // Get coordinates relative to preview canvas
-            const previewRect = previewCanvas.getBoundingClientRect();
-            let pageX, pageY;
-            
-            if (e.type === 'touchmove') {
-                pageX = e.touches[0].pageX;
-                pageY = e.touches[0].pageY;
-            } else {
-                pageX = e.pageX;
-                pageY = e.pageY;
-            }
-            
-            // Calculate position relative to canvas
-            let x = (pageX - previewRect.left) * (previewCanvas.width / previewRect.width);
-            let y = (pageY - previewRect.top) * (previewCanvas.height / previewRect.height);
-            
-            // Constrain to canvas bounds with some padding
-            x = Math.max(10, Math.min(previewCanvas.width - 10, x));
-            y = Math.max(10, Math.min(previewCanvas.height - 10, y));
-            
-            // Update the corner position in our document corners object
-            window.detectedDocument[activeCorner] = { x, y };
-            
-            // Redraw corners
-            updateDocumentCornersDisplay(window.detectedDocument);
-            
-            // Re-initialize dragging since we redrew the handles
-            const cornerHandles = document.querySelectorAll('.corner-handle');
-            cornerHandles.forEach(handle => {
-                if (handle.getAttribute('data-corner') === activeCorner) {
-                    handle.setAttribute('stroke-width', '3');
-                    handle.setAttribute('r', '14');
-                }
-            });
+        // Calculate position as percentage of container
+        const percentX = ((clientX - containerRect.left) / containerRect.width) * 100;
+        const percentY = ((clientY - containerRect.top) / containerRect.height) * 100;
+        
+        // Update corner position (clamped to container bounds)
+        const clampedX = Math.max(0, Math.min(100, percentX));
+        const clampedY = Math.max(0, Math.min(100, percentY));
+        
+        activeCorner.style.left = `${clampedX}%`;
+        activeCorner.style.top = `${clampedY}%`;
+        
+        // Update data attributes with actual pixel values
+        const actualX = (clampedX / 100) * previewCanvas.width;
+        const actualY = (clampedY / 100) * previewCanvas.height;
+        
+        activeCorner.setAttribute('data-x', actualX);
+        activeCorner.setAttribute('data-y', actualY);
+        
+        // Update document path and dark overlay
+        updateDocumentPath();
+        createDarkOverlay();
+    }
+    
+    // Stop dragging
+    function stopDrag() {
+        if (!isDragging) return;
+        
+        // Remove dragging class
+        if (activeCorner) {
+            activeCorner.classList.remove('dragging');
         }
         
-        function stopDrag(e) {
-            if (!isDragging) return;
+        // Update the detectedDocument object with new corner positions
+        updateDetectedDocumentCorners();
+        
+        isDragging = false;
+        activeCorner = null;
+        
+        // Remove event listeners
+        document.removeEventListener('mousemove', dragCorner);
+        document.removeEventListener('touchmove', dragCorner);
+        document.removeEventListener('mouseup', stopDrag);
+        document.removeEventListener('touchend', stopDrag);
+        
+        // Show message about corner adjustment
+        showAlert('Corner position updated. Fine-tune as needed.', 'info', 2000);
+    }
+    
+    // Update detected document corners from current point positions
+    function updateDetectedDocumentCorners() {
+        if (!window.detectedDocument || cornerPoints.length !== 4) return;
+        
+        // Get corner positions
+        const topLeft = {
+            x: parseFloat(cornerPoints[0].getAttribute('data-x')),
+            y: parseFloat(cornerPoints[0].getAttribute('data-y'))
+        };
+        
+        const topRight = {
+            x: parseFloat(cornerPoints[1].getAttribute('data-x')),
+            y: parseFloat(cornerPoints[1].getAttribute('data-y'))
+        };
+        
+        const bottomRight = {
+            x: parseFloat(cornerPoints[2].getAttribute('data-x')),
+            y: parseFloat(cornerPoints[2].getAttribute('data-y'))
+        };
+        
+        const bottomLeft = {
+            x: parseFloat(cornerPoints[3].getAttribute('data-x')),
+            y: parseFloat(cornerPoints[3].getAttribute('data-y'))
+        };
+        
+        // Update detected document
+        window.detectedDocument = {
+            topLeft, topRight, bottomRight, bottomLeft
+        };
+    }
+    
+    // Update the document path based on corner positions
+    function updateDocumentPath() {
+        if (!documentPath || cornerPoints.length !== 4) return;
+        
+        // Get the corner points in the right order
+        const points = Array.from(cornerPoints);
+        
+        // Create path from corner points with proper syntax for SVG path
+        const pathData = `
+            M ${points[0].style.left} ${points[0].style.top}
+            L ${points[1].style.left} ${points[1].style.top}
+            L ${points[2].style.left} ${points[2].style.top}
+            L ${points[3].style.left} ${points[3].style.top}
+            Z
+        `;
+        
+        // Apply the path
+        documentPath.setAttribute('d', pathData);
+        
+        // Also update the style to make it more visible
+        documentPath.setAttribute('stroke-width', '3');
+        documentPath.setAttribute('stroke', 'var(--primary-orange)');
+        documentPath.setAttribute('fill', 'rgba(255, 125, 48, 0.05)');
+    }
+    
+    // Create dark overlay outside document area
+    function createDarkOverlay() {
+        const overlay = document.querySelector('.document-outside-overlay');
+        
+        if (!overlay) {
+            // Create overlay element if it doesn't exist
+            const svgNS = "http://www.w3.org/2000/svg";
+            const overlayContainer = document.createElementNS(svgNS, "svg");
+            overlayContainer.setAttribute("class", "document-outside-overlay");
+            overlayContainer.setAttribute("width", "100%");
+            overlayContainer.setAttribute("height", "100%");
+            overlayContainer.style.position = "absolute";
+            overlayContainer.style.top = "0";
+            overlayContainer.style.left = "0";
+            overlayContainer.style.pointerEvents = "none";
+            overlayContainer.style.zIndex = "4";
             
-            isDragging = false;
+            const mask = document.createElementNS(svgNS, "mask");
+            mask.setAttribute("id", "document-mask");
             
-            // Remove event listeners
-            document.removeEventListener('mousemove', dragCorner);
-            document.removeEventListener('touchmove', dragCorner);
-            document.removeEventListener('mouseup', stopDrag);
-            document.removeEventListener('touchend', stopDrag);
+            const background = document.createElementNS(svgNS, "rect");
+            background.setAttribute("width", "100%");
+            background.setAttribute("height", "100%");
+            background.setAttribute("fill", "white"); // White = visible in mask
             
-            // Reset handle styling
-            const activeHandle = document.querySelector(`.corner-handle[data-corner="${activeCorner}"]`);
-            if (activeHandle) {
-                activeHandle.setAttribute('stroke-width', '2');
-                activeHandle.setAttribute('r', '12');
+            const documentArea = document.createElementNS(svgNS, "path");
+            documentArea.setAttribute("fill", "black"); // Black = transparent in mask
+            documentArea.setAttribute("id", "document-mask-path");
+            
+            mask.appendChild(background);
+            mask.appendChild(documentArea);
+            
+            const darkRect = document.createElementNS(svgNS, "rect");
+            darkRect.setAttribute("width", "100%");
+            darkRect.setAttribute("height", "100%");
+            darkRect.setAttribute("fill", "rgba(0, 0, 0, 0.7)");
+            darkRect.setAttribute("mask", "url(#document-mask)");
+            
+            overlayContainer.appendChild(mask);
+            overlayContainer.appendChild(darkRect);
+            
+            const previewContainer = document.querySelector('.preview-container');
+            if (previewContainer) {
+                previewContainer.appendChild(overlayContainer);
             }
-            
-            activeCorner = null;
-            
-            // Show message about corner adjustment
-            showAlert('Corner position updated. Adjust others if needed.', 'info', 2000);
+        }
+        
+        // Update mask path to match document path
+        const maskPath = document.getElementById('document-mask-path');
+        if (maskPath && documentPath) {
+            maskPath.setAttribute('d', documentPath.getAttribute('d'));
         }
     }
     
@@ -327,19 +466,50 @@ document.addEventListener('DOMContentLoaded', function() {
             bottomLeft: { x: docX, y: docY + docHeight }
         };
         
-        // Update document corners visualization
-        updateDocumentCornersDisplay(window.detectedDocument);
+        // Position corner points
+        positionCornerPoints(window.detectedDocument);
         
-        // Add corner drag handlers
-        initCornerDragging();
+        // Update document path
+        updateDocumentPath();
+        
+        // Add dark overlay outside document
+        createDarkOverlay();
         
         // Show basic detection message
-        if (documentDetectedMessage) {
-            documentDetectedMessage.innerHTML = '<i class="fa-solid fa-arrows-up-down-left-right"></i> Adjust corners to fit document';
-            documentDetectedMessage.style.backgroundColor = 'rgba(255, 125, 0, 0.5)';
+        if (documentEditorMessage) {
+            documentEditorMessage.innerHTML = '<i class="fa-solid fa-arrows-up-down-left-right"></i> Adjust corners to fit document';
         }
         
         showAlert('Adjust document corners for perfect alignment.', 'info');
+    }
+    
+    // Simple crop without perspective correction - preserves natural look
+    function simpleCropDocument(sourceCanvas, corners) {
+        const { topLeft, topRight, bottomRight, bottomLeft } = corners;
+        
+        // Find the bounding box
+        const minX = Math.min(topLeft.x, bottomLeft.x);
+        const minY = Math.min(topLeft.y, topRight.y);
+        const maxX = Math.max(topRight.x, bottomRight.x);
+        const maxY = Math.max(bottomLeft.y, bottomRight.y);
+        
+        const width = maxX - minX;
+        const height = maxY - minY;
+        
+        // Create a new canvas for the cropped document
+        const destCanvas = document.createElement('canvas');
+        destCanvas.width = width;
+        destCanvas.height = height;
+        const destContext = destCanvas.getContext('2d');
+        
+        // Just crop the image
+        destContext.drawImage(
+            sourceCanvas,
+            minX, minY, width, height,
+            0, 0, width, height
+        );
+        
+        return destCanvas;
     }
     
     // Process the detected document (when user confirms with checkmark)
@@ -357,21 +527,119 @@ document.addEventListener('DOMContentLoaded', function() {
         if (previewContainer) {
             previewContainer.classList.add('scan-active');
             
-            // Let the app.js handle the document processing after scan effect
+            // Process after scan effect
             setTimeout(() => {
                 previewContainer.classList.remove('scan-active');
                 
-                // Update workflow step
-                if (typeof updateWorkflowStep === 'function') {
-                    updateWorkflowStep('process');
+                try {
+                    let correctedCanvas;
+                    
+                    // Check if correction is enabled (if checkbox exists)
+                    if (document.getElementById('apply-correction') && 
+                        document.getElementById('apply-correction').checked) {
+                        // Apply perspective correction
+                        correctedCanvas = window.documentDetection.correctPerspective(
+                            previewCanvas, 
+                            window.detectedDocument
+                        );
+                    } else {
+                        // Use simple crop for natural look (default option)
+                        correctedCanvas = simpleCropDocument(
+                            previewCanvas, 
+                            window.detectedDocument
+                        );
+                    }
+                    
+                    // Apply enhancements if enabled
+                    if (document.getElementById('enhance-contrast') && 
+                        document.getElementById('enhance-contrast').checked) {
+                        window.documentDetection.enhanceDocument(correctedCanvas);
+                    }
+                    
+                    // Convert to black and white if enabled
+                    if (document.getElementById('bw-mode') && 
+                        document.getElementById('bw-mode').checked) {
+                        convertToBlackAndWhite(correctedCanvas);
+                    }
+                    
+                    // Generate and download PDF
+                    generatePDF(correctedCanvas);
+                    
+                    // Update workflow step
+                    if (typeof updateWorkflowStep === 'function') {
+                        updateWorkflowStep('process');
+                    }
+                    
+                    showAlert('Document processed successfully!', 'success');
+                } catch (error) {
+                    console.error('Error processing document:', error);
+                    showAlert('Error processing document. Please try again.', 'error');
                 }
             }, 1200);
-        } else {
-            // Update workflow step immediately if no container for effects
-            if (typeof updateWorkflowStep === 'function') {
-                updateWorkflowStep('process');
-            }
         }
+    }
+    
+    // Convert canvas to black and white
+    function convertToBlackAndWhite(canvas) {
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        for (let i = 0; i < data.length; i += 4) {
+            const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            const threshold = 128;
+            const value = avg > threshold ? 255 : 0;
+            data[i] = data[i + 1] = data[i + 2] = value;
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        return canvas;
+    }
+    
+    // Generate and download PDF
+    function generatePDF(canvas) {
+        // Check if jsPDF is available globally or through window.jspdf
+        const jspdfLib = window.jspdf || window.jsPDF || window;
+        
+        if (typeof jspdfLib.jsPDF === 'undefined') {
+            console.warn('jsPDF library not found, falling back to image download');
+            downloadCanvasAsImage(canvas);
+            return;
+        }
+        
+        try {
+            const { jsPDF } = jspdfLib;
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            
+            // Add the canvas as an image to the PDF with high quality
+            const imgData = canvas.toDataURL('image/jpeg', 0.98);
+            pdf.addImage(imgData, 'JPEG', 10, 10, 190, 270);
+            
+            // Save the PDF
+            pdf.save('document-scan.pdf');
+            
+            showAlert('Document saved as PDF!', 'success');
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            // Fallback to image download
+            downloadCanvasAsImage(canvas);
+        }
+    }
+    
+    // Fallback: Download canvas as image if PDF generation fails
+    function downloadCanvasAsImage(canvas) {
+        const link = document.createElement('a');
+        link.download = 'document-scan.jpg';
+        link.href = canvas.toDataURL('image/jpeg', 0.98);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showAlert('Document saved as image!', 'success');
     }
     
     // Handle retake button
@@ -401,7 +669,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cleanup when the page unloads
     window.addEventListener('beforeunload', stopCamera);
     
-    // Helper function to show alerts (uses the same function from search.js)
+    // Helper function to show alerts
     function showAlert(message, type = 'info', duration = 3000) {
         const appAlert = document.getElementById('app-alert');
         const alertMessage = document.getElementById('alert-message');
@@ -421,4 +689,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 300);
         }, duration);
     }
+
+    // Crea la opción de corrección de perspectiva si no existe
+    function createPerspectiveOption() {
+        const enhancementOptions = document.querySelector('.enhancement-options');
+        if (enhancementOptions && !document.getElementById('apply-correction')) {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'enhancement-option';
+            optionDiv.innerHTML = `
+                <input type="checkbox" id="apply-correction">
+                <label for="apply-correction">Corregir perspectiva (puede distorsionar)</label>
+            `;
+            enhancementOptions.appendChild(optionDiv);
+        }
+    }
+
+    // Ejecuta esta función cuando se cargue la página
+    createPerspectiveOption();
 });

@@ -278,7 +278,7 @@ function drawCornerMarkers(ctx, corners, size) {
     });
 }
 
-// Apply perspective correction to the document
+// Apply perspective correction to the document - MODIFIED FOR NATURAL LOOK
 function correctPerspective(sourceCanvas, corners) {
     if (!isOpenCvReady()) {
         console.warn('OpenCV not ready, using basic correction');
@@ -293,9 +293,15 @@ function correctPerspective(sourceCanvas, corners) {
         const imageData = context.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
         const src = cv.matFromImageData(imageData);
         
-        // Set output size to A4 proportion
-        const destWidth = 595; // A4 width at 72dpi
-        const destHeight = 842; // A4 height at 72dpi
+        // MODIFICADO: Usar las dimensiones originales de la imagen en lugar de forzar A4
+        const destWidth = Math.max(
+            Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y),
+            Math.hypot(bottomRight.x - bottomLeft.x, bottomRight.y - bottomLeft.y)
+        );
+        const destHeight = Math.max(
+            Math.hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y),
+            Math.hypot(bottomRight.x - topRight.x, bottomRight.y - topRight.y)
+        );
         
         // Define source points
         const srcPoints = cv.matFromArray(4, 1, cv.CV_32FC2, [
@@ -305,7 +311,7 @@ function correctPerspective(sourceCanvas, corners) {
             bottomLeft.x, bottomLeft.y
         ]);
         
-        // Define destination points (rectangle)
+        // Define destination points manteniendo proporción natural
         const dstPoints = cv.matFromArray(4, 1, cv.CV_32FC2, [
             0, 0,
             destWidth, 0,
@@ -348,38 +354,61 @@ function correctPerspective(sourceCanvas, corners) {
     }
 }
 
-// Basic perspective correction as fallback
+// Basic perspective correction as fallback - MODIFIED FOR NATURAL LOOK
 function basicCorrectPerspective(sourceCanvas, corners) {
     const { topLeft, topRight, bottomRight, bottomLeft } = corners;
     
+    // MODIFICADO: Calcular dimensiones basadas en el documento detectado
+    const width = Math.max(
+        Math.abs(topRight.x - topLeft.x),
+        Math.abs(bottomRight.x - bottomLeft.x)
+    );
+    const height = Math.max(
+        Math.abs(bottomLeft.y - topLeft.y),
+        Math.abs(bottomRight.y - topRight.y)
+    );
+    
     // Create a new canvas for the corrected document
     const destCanvas = document.createElement('canvas');
+    destCanvas.width = width;
+    destCanvas.height = height;
     const destContext = destCanvas.getContext('2d');
-    
-    // Set output size to A4 proportion
-    const destWidth = 595; // A4 width at 72dpi
-    const destHeight = 842; // A4 height at 72dpi
-    
-    destCanvas.width = destWidth;
-    destCanvas.height = destHeight;
     
     // Draw white background
     destContext.fillStyle = '#ffffff';
-    destContext.fillRect(0, 0, destWidth, destHeight);
+    destContext.fillRect(0, 0, width, height);
     
-    // Simple crop and scale
-    const sourceWidth = topRight.x - topLeft.x;
-    const sourceHeight = bottomLeft.y - topLeft.y;
-    
+    // Simplemente recortar el área del documento
     destContext.drawImage(
         sourceCanvas,
-        topLeft.x, topLeft.y, sourceWidth, sourceHeight,
-        0, 0, destWidth, destHeight
+        topLeft.x, topLeft.y, width, height,
+        0, 0, width, height
     );
     
     return destCanvas;
 }
+// Helper function to check document orientation
+function isDocumentLandscape(corners) {
+    const { topLeft, topRight, bottomLeft } = corners;
+    
+    // Calculate width and height of document based on corners
+    const docWidth = Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y);
+    const docHeight = Math.hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y);
+    
+    // Return true if width > height (landscape orientation)
+    return docWidth > docHeight;
+}
 
+// Y actualiza la exportación al final del archivo:
+window.documentDetection = {
+    detectDocument,
+    performDocumentDetectionWithCV,
+    correctPerspective,
+    processDocumentContent,
+    enhanceDocument,
+    isOpenCvReady,
+    isDocumentLandscape  // Añadida la función de orientación
+};
 // Process document for OCR or other post-processing
 function processDocumentContent(documentImage) {
     // This would integrate with an OCR service in a real implementation
@@ -393,7 +422,7 @@ function processDocumentContent(documentImage) {
     };
 }
 
-// Process document for color/contrast enhancement
+// Process document for color/contrast enhancement - COLOR PRESERVING VERSION
 function enhanceDocument(canvas) {
     if (!isOpenCvReady()) {
         console.warn('OpenCV not ready, using basic enhancement');
@@ -407,18 +436,33 @@ function enhanceDocument(canvas) {
         
         // Convert to OpenCV format
         const src = cv.matFromImageData(imageData);
-        const dst = new cv.Mat();
         
-        // Convert to grayscale
-        cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+        // IMPROVED: Use Lab color space for better color preservation
+        const labImg = new cv.Mat();
+        cv.cvtColor(src, labImg, cv.COLOR_RGBA2Lab);
         
-        // Apply adaptive threshold for document-like effect
-        const processed = new cv.Mat();
-        cv.adaptiveThreshold(dst, processed, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2);
+        // Split channels (L = lightness, a/b = color)
+        let labPlanes = new cv.MatVector();
+        cv.split(labImg, labPlanes);
         
-        // Convert back to RGB for display
+        // Only enhance the L channel (lightness)
+        let lChannel = labPlanes.get(0);
+        
+        // Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
+        const clahe = new cv.CLAHE(2.0, new cv.Size(8, 8));
+        const enhancedL = new cv.Mat();
+        clahe.apply(lChannel, enhancedL);
+        
+        // Replace L channel with enhanced version
+        labPlanes.set(0, enhancedL);
+        
+        // Merge channels back
+        const enhancedLab = new cv.Mat();
+        cv.merge(labPlanes, enhancedLab);
+        
+        // Convert back to RGBA
         const result = new cv.Mat();
-        cv.cvtColor(processed, result, cv.COLOR_GRAY2RGBA);
+        cv.cvtColor(enhancedLab, result, cv.COLOR_Lab2RGBA);
         
         // Copy result back to canvas
         const processedData = new ImageData(
@@ -430,9 +474,12 @@ function enhanceDocument(canvas) {
         
         // Clean up
         src.delete();
-        dst.delete();
-        processed.delete();
+        labImg.delete();
+        lChannel.delete();
+        enhancedL.delete();
+        enhancedLab.delete();
         result.delete();
+        labPlanes.delete();
         
         return canvas;
     } catch (error) {
@@ -440,7 +487,6 @@ function enhanceDocument(canvas) {
         return basicEnhanceDocument(canvas);
     }
 }
-
 // Basic enhancement as fallback
 function basicEnhanceDocument(canvas) {
     const context = canvas.getContext('2d');
