@@ -255,6 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start dragging a corner point
     function startDrag(e) {
         e.preventDefault();
+        e.stopPropagation(); // Importante para evitar conflictos
         
         isDragging = true;
         activeCorner = e.target;
@@ -267,6 +268,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.addEventListener('touchmove', dragCorner, { passive: false });
         document.addEventListener('mouseup', stopDrag);
         document.addEventListener('touchend', stopDrag);
+        
+        console.log('Comenzando arrastre de punto:', activeCorner.className);
     }
     
     // Handle dragging a corner point
@@ -274,6 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!isDragging || !activeCorner) return;
         
         e.preventDefault();
+        e.stopPropagation(); // Detener propagación para evitar conflictos
         
         // Get coordinates relative to preview container
         const previewContainer = document.querySelector('.preview-container');
@@ -288,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
             clientY = e.clientY;
         }
         
-        // Calculate position as percentage of container
+        // Calculate position with mayor precisión (4 decimales)
         const percentX = ((clientX - containerRect.left) / containerRect.width) * 100;
         const percentY = ((clientY - containerRect.top) / containerRect.height) * 100;
         
@@ -296,19 +300,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const clampedX = Math.max(0, Math.min(100, percentX));
         const clampedY = Math.max(0, Math.min(100, percentY));
         
-        activeCorner.style.left = `${clampedX}%`;
-        activeCorner.style.top = `${clampedY}%`;
+        // Mayor precisión en la posición
+        activeCorner.style.left = `${clampedX.toFixed(4)}%`;
+        activeCorner.style.top = `${clampedY.toFixed(4)}%`;
         
         // Update data attributes with actual pixel values
         const actualX = (clampedX / 100) * previewCanvas.width;
         const actualY = (clampedY / 100) * previewCanvas.height;
         
-        activeCorner.setAttribute('data-x', actualX);
-        activeCorner.setAttribute('data-y', actualY);
+        activeCorner.setAttribute('data-x', actualX.toFixed(2));
+        activeCorner.setAttribute('data-y', actualY.toFixed(2));
         
         // Update document path and dark overlay
         updateDocumentPath();
         createDarkOverlay();
+        
+        // Log para depuración (quita esto en producción)
+        console.log(`Moviendo punto: ${activeCorner.className} a X:${clampedX.toFixed(1)}% Y:${clampedY.toFixed(1)}%`);
     }
     
     // Stop dragging
@@ -390,6 +398,58 @@ document.addEventListener('DOMContentLoaded', function() {
         documentPath.setAttribute('stroke-width', '3');
         documentPath.setAttribute('stroke', 'var(--primary-orange)');
         documentPath.setAttribute('fill', 'rgba(255, 125, 48, 0.05)');
+        documentPath.setAttribute('stroke-dasharray', '6,3'); // Línea punteada más visible
+        
+        // Actualizar las conexiones entre puntos
+        updateCornerConnections(points);
+    }
+    
+    // Nueva función para crear líneas visibles entre puntos
+    function updateCornerConnections(points) {
+        // Crear o recuperar el contenedor de conexiones
+        let connectionsContainer = document.getElementById('corner-connections');
+        if (!connectionsContainer) {
+            connectionsContainer = document.createElement('div');
+            connectionsContainer.id = 'corner-connections';
+            connectionsContainer.className = 'corner-connections-container';
+            document.querySelector('.document-editor-overlay').appendChild(connectionsContainer);
+        }
+        
+        // Limpiar conexiones existentes
+        connectionsContainer.innerHTML = '';
+        
+        // Conectar puntos con líneas visibles
+        const connections = [
+            [0, 1], // Top left to top right
+            [1, 2], // Top right to bottom right
+            [2, 3], // Bottom right to bottom left
+            [3, 0]  // Bottom left to top left
+        ];
+        
+        connections.forEach(([fromIdx, toIdx]) => {
+            const from = points[fromIdx];
+            const to = points[toIdx];
+            
+            // Extract positions (removing % symbol and parsing as float)
+            const fromX = parseFloat(from.style.left);
+            const fromY = parseFloat(from.style.top);
+            const toX = parseFloat(to.style.left);
+            const toY = parseFloat(to.style.top);
+            
+            // Calculate length and angle
+            const length = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+            const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
+            
+            // Create connection line
+            const connection = document.createElement('div');
+            connection.className = 'corner-connection';
+            connection.style.width = `${length}%`;
+            connection.style.left = `${fromX}%`;
+            connection.style.top = `${fromY}%`;
+            connection.style.transform = `rotate(${angle}deg)`;
+            
+            connectionsContainer.appendChild(connection);
+        });
     }
     
     // Create dark overlay outside document area
@@ -532,20 +592,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 previewContainer.classList.remove('scan-active');
                 
                 try {
+                    // IMPORTANTE: Ocultar temporalmente los elementos de edición para que no aparezcan en el PDF
+                    const editorElements = document.querySelectorAll('.document-editor-overlay, .document-outside-overlay, #corner-connections, .corner-connection');
+                    editorElements.forEach(el => {
+                        if (el) el.style.display = 'none';
+                    });
+                    
+                    // Crear un canvas temporal sin los elementos de edición
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = previewCanvas.width;
+                    tempCanvas.height = previewCanvas.height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(previewCanvas, 0, 0);
+                    
+                    // Restaurar visibilidad después de capturar la imagen
+                    setTimeout(() => {
+                        editorElements.forEach(el => {
+                            if (el) el.style.display = '';
+                        });
+                    }, 100);
+                    
                     let correctedCanvas;
                     
-                    // Check if correction is enabled (if checkbox exists)
+                    // Check if correction is enabled
                     if (document.getElementById('apply-correction') && 
                         document.getElementById('apply-correction').checked) {
                         // Apply perspective correction
                         correctedCanvas = window.documentDetection.correctPerspective(
-                            previewCanvas, 
+                            tempCanvas, 
                             window.detectedDocument
                         );
                     } else {
-                        // Use simple crop for natural look (default option)
+                        // Use simple crop for natural look
                         correctedCanvas = simpleCropDocument(
-                            previewCanvas, 
+                            tempCanvas, 
                             window.detectedDocument
                         );
                     }

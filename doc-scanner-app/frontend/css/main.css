@@ -713,7 +713,8 @@ body {
     z-index: 4;
     pointer-events: none;
 }
-/* Enhanced document corner points for better dragging */
+
+/* Estilos mejorados para puntos de esquina */
 .corner-point {
     position: absolute;
     width: 28px !important;
@@ -725,8 +726,9 @@ body {
     cursor: move !important;
     pointer-events: auto !important;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
-    z-index: 35 !important;
+    z-index: 100 !important; /* Z-index aumentado para asegurar que esté por encima de todo */
     transition: transform 0.15s ease-out, background-color 0.2s ease;
+    touch-action: none; /* Mejora para dispositivos táctiles */
 }
 
 .corner-point:hover, .corner-point:active, .corner-point.dragging {
@@ -736,54 +738,48 @@ body {
     box-shadow: 0 0 0 5px rgba(255, 125, 48, 0.3), 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
-/* Dark overlay outside document */
-.document-outside-overlay {
+/* Contenedor de conexiones entre esquinas */
+.corner-connections-container {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 4;
-    pointer-events: none !important; /* Prevent overlay from blocking corner point dragging */
-}
-
-/* Document outline container */
-#document-outline {
-    position: absolute;
-    top: 0;
-    left: 0;
     pointer-events: none;
+    z-index: 50;
 }
 
-/* Actualización para líneas entre puntos del documento */
-#document-path {
-    fill: rgba(255, 125, 48, 0.15);
-    stroke: var(--primary-orange);
-    stroke-width: 3;
-    stroke-opacity: 0.9;
-    stroke-dasharray: 8, 4;
-    fill-opacity: 0.2;
-    z-index: 30;
-    animation: dash 15s linear infinite;
-    filter: drop-shadow(0 0 3px rgba(255, 125, 48, 0.5));
-    transition: all 0.3s ease;
-}
-
-@keyframes dash {
-    to {
-        stroke-dashoffset: 1000;
-    }
-}
-
-/* Mejorar la visualización de las líneas de conexión */
+/* Líneas de conexión entre puntos */
 .corner-connection {
     position: absolute;
     height: 3px;
     background-color: var(--primary-orange);
     transform-origin: left center;
     pointer-events: none;
-    z-index: 25;
+    z-index: 50;
     box-shadow: 0 0 5px rgba(255, 125, 48, 0.5);
+    border-radius: 1.5px;
+}
+
+/* Mejorar la interactividad del editor */
+.document-editor-overlay {
+    pointer-events: none !important;
+    z-index: 40;
+}
+
+#document-outline {
+    pointer-events: none;
+    z-index: 45;
+}
+
+/* Estilo para el path del documento */
+#document-path {
+    fill: rgba(255, 125, 48, 0.1);
+    stroke: var(--primary-orange);
+    stroke-width: 3;
+    stroke-opacity: 0.9;
+    stroke-dasharray: 6, 3;
+    filter: drop-shadow(0 0 3px rgba(255, 125, 48, 0.3));
 }
 
 /* Default corner positions */
