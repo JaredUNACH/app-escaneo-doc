@@ -123,17 +123,33 @@
             
             <section id="preview-section" class="section-card hidden">
                 <div class="section-header">
-                    <h2><i class="fa-solid fa-eye"></i> Document Preview</h2>
-                    <p class="section-description">Review the detected document</p>
+                    <h2><i class="fa-solid fa-crop-alt"></i> Fine-tune Document</h2>
+                    <p class="section-description">Adjust corners for perfect alignment</p>
                 </div>
                 <div class="preview-container">
                     <canvas id="preview-canvas"></canvas>
-                    <div class="document-detection-overlay">
-                        <div id="document-detected-message" class="document-detected-message">
-                            <i class="fa-solid fa-check-circle"></i> Document detected
+                    
+                    <!-- Interactive corner adjustment points -->
+                    <div class="document-editor-overlay">
+                        <div id="corner-points">
+                            <div class="corner-point top-left" data-corner="topLeft"></div>
+                            <div class="corner-point top-right" data-corner="topRight"></div>
+                            <div class="corner-point bottom-right" data-corner="bottomRight"></div>
+                            <div class="corner-point bottom-left" data-corner="bottomLeft"></div>
+                            
+                            <!-- Document outline -->
+                            <svg id="document-outline" width="100%" height="100%">
+                                <path id="document-path" fill="rgba(255, 125, 0, 0.1)" stroke="#ff7d30" stroke-width="2"></path>
+                            </svg>
                         </div>
-                        <div id="document-corners" class="document-corners"></div>
+                        
+                        <!-- Status message -->
+                        <div id="document-editor-message" class="document-editor-message">
+                            <i class="fa-solid fa-arrows-up-down-left-right"></i> Drag corners to adjust
+                        </div>
                     </div>
+                    
+                    <!-- Action buttons -->
                     <div class="preview-actions">
                         <button id="retake-button" class="preview-action-button cancel">
                             <i class="fa-solid fa-xmark"></i>
@@ -141,6 +157,22 @@
                         <button id="confirm-button" class="preview-action-button confirm">
                             <i class="fa-solid fa-check"></i>
                         </button>
+                    </div>
+                </div>
+                
+                <!-- Enhancement options -->
+                <div class="enhancement-options">
+                    <div class="enhancement-option">
+                        <input type="checkbox" id="enhance-contrast" checked>
+                        <label for="enhance-contrast">Enhance contrast</label>
+                    </div>
+                    <div class="enhancement-option">
+                        <input type="checkbox" id="bw-mode">
+                        <label for="bw-mode">Black & white</label>
+                    </div>
+                    <div class="enhancement-option">
+                        <input type="checkbox" id="auto-straighten" checked>
+                        <label for="auto-straighten">Auto-straighten</label>
                     </div>
                 </div>
             </section>

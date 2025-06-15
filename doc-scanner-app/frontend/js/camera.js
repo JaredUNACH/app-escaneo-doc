@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const cameraSection = document.getElementById('camera-section');
@@ -12,11 +11,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const documentCornersElement = document.getElementById('document-corners');
     const documentDetectedMessage = document.getElementById('document-detected-message');
     
+    // Add camera flash element
+    const cameraFlash = document.createElement('div');
+    cameraFlash.className = 'camera-flash';
+    document.body.appendChild(cameraFlash);
+    
+    // Add scan line element for effect
+    const scanLine = document.createElement('div');
+    scanLine.className = 'scan-line';
+    
     // Camera stream reference
     let cameraStream = null;
     
     // Canvas contexts
-    const previewContext = previewCanvas.getContext('2d');
+    const previewContext = previewCanvas ? previewCanvas.getContext('2d') : null;
+    
+    // Track if corners are being dragged
+    let isDragging = false;
+    let activeCorner = null;
     
     // Initialize camera when section becomes visible
     const observer = new MutationObserver(function(mutations) {
@@ -85,12 +97,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Capture image from camera
+    // Capture image from camera with flash effect
     function captureImage() {
         if (!cameraStream) {
             showAlert('Camera not ready.', 'error');
             return;
         }
+        
+        // Trigger camera flash effect
+        cameraFlash.classList.add('active');
+        setTimeout(() => {
+            cameraFlash.classList.remove('active');
+        }, 700);
         
         // Show processing indicator
         showAlert('Processing image...', 'info');
@@ -108,6 +126,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Hide camera section and show preview
         cameraSection.classList.add('hidden');
         previewSection.classList.remove('hidden');
+        
+        // Add scan line animation
+        const previewContainer = document.querySelector('.preview-container');
+        if (previewContainer) {
+            previewContainer.appendChild(scanLine);
+            previewContainer.classList.add('scan-active');
+            
+            // Remove scan line after animation
+            setTimeout(() => {
+                previewContainer.classList.remove('scan-active');
+            }, 1500);
+        }
         
         // Detect document in the captured image
         detectDocumentEdges();
@@ -135,16 +165,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     previewContext.clearRect(0, 0, width, height);
                     previewContext.drawImage(img, 0, 0, width, height);
                     
-                    // Update document corners visualization
+                    // Update document corners visualization with draggable corners
                     updateDocumentCornersDisplay(result.corners);
                     
+                    // Add corner drag handlers
+                    initCornerDragging();
+                    
                     // Show success message
-                    documentDetectedMessage.innerHTML = '<i class="fa-solid fa-check-circle"></i> Document detected';
-                    documentDetectedMessage.style.backgroundColor = 'rgba(0, 150, 0, 0.5)';
+                    if (documentDetectedMessage) {
+                        documentDetectedMessage.innerHTML = '<i class="fa-solid fa-check-circle"></i> Document detected - Adjust corners if needed';
+                        documentDetectedMessage.style.backgroundColor = 'rgba(0, 150, 0, 0.5)';
+                    }
                 };
                 img.src = result.imageData;
                 
-                showAlert('Document detected! Review and confirm or retake.', 'success');
+                showAlert('Document detected! Adjust corners if needed, then confirm.', 'success');
             } catch (error) {
                 console.error('Error in document detection:', error);
                 fallbackDocumentDetection();
@@ -170,37 +205,106 @@ document.addEventListener('DOMContentLoaded', function() {
                     L ${bottomRight.x} ${bottomRight.y}
                     L ${bottomLeft.x} ${bottomLeft.y}
                     Z
-                " fill="rgba(255, 125, 0, 0.1)" stroke="#ff7d30" stroke-width="3"></path>
+                " fill="rgba(255, 125, 0, 0.1)" stroke="#ff7d30" stroke-width="3" stroke-dasharray="8" stroke-dashoffset="0"></path>
                 
-                <!-- Top-left corner -->
-                <path d="
-                    M ${topLeft.x} ${topLeft.y + 30}
-                    L ${topLeft.x} ${topLeft.y}
-                    L ${topLeft.x + 30} ${topLeft.y}
-                " stroke="#ff7d30" stroke-width="4"></path>
-                
-                <!-- Top-right corner -->
-                <path d="
-                    M ${topRight.x - 30} ${topRight.y}
-                    L ${topRight.x} ${topRight.y}
-                    L ${topRight.x} ${topRight.y + 30}
-                " stroke="#ff7d30" stroke-width="4"></path>
-                
-                <!-- Bottom-right corner -->
-                <path d="
-                    M ${bottomRight.x} ${bottomRight.y - 30}
-                    L ${bottomRight.x} ${bottomRight.y}
-                    L ${bottomRight.x - 30} ${bottomRight.y}
-                " stroke="#ff7d30" stroke-width="4"></path>
-                
-                <!-- Bottom-left corner -->
-                <path d="
-                    M ${bottomLeft.x + 30} ${bottomLeft.y}
-                    L ${bottomLeft.x} ${bottomLeft.y}
-                    L ${bottomLeft.x} ${bottomLeft.y - 30}
-                " stroke="#ff7d30" stroke-width="4"></path>
+                <!-- Interactive corner points -->
+                <circle class="corner-handle" cx="${topLeft.x}" cy="${topLeft.y}" r="12" fill="#ff7d30" stroke="white" stroke-width="2" data-corner="topLeft" />
+                <circle class="corner-handle" cx="${topRight.x}" cy="${topRight.y}" r="12" fill="#ff7d30" stroke="white" stroke-width="2" data-corner="topRight" />
+                <circle class="corner-handle" cx="${bottomRight.x}" cy="${bottomRight.y}" r="12" fill="#ff7d30" stroke="white" stroke-width="2" data-corner="bottomRight" />
+                <circle class="corner-handle" cx="${bottomLeft.x}" cy="${bottomLeft.y}" r="12" fill="#ff7d30" stroke="white" stroke-width="2" data-corner="bottomLeft" />
             </svg>
         `;
+    }
+    
+    // Initialize corner dragging
+    function initCornerDragging() {
+        const cornerHandles = document.querySelectorAll('.corner-handle');
+        
+        cornerHandles.forEach(handle => {
+            handle.addEventListener('mousedown', startDrag);
+            handle.addEventListener('touchstart', startDrag, { passive: false });
+        });
+        
+        function startDrag(e) {
+            e.preventDefault();
+            isDragging = true;
+            activeCorner = e.target.getAttribute('data-corner');
+            
+            // Add event listeners for drag movement
+            document.addEventListener('mousemove', dragCorner);
+            document.addEventListener('touchmove', dragCorner, { passive: false });
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchend', stopDrag);
+            
+            // Add active styling to the handle
+            e.target.setAttribute('stroke-width', '3');
+            e.target.setAttribute('r', '14');
+        }
+        
+        function dragCorner(e) {
+            if (!isDragging || !activeCorner) return;
+            
+            e.preventDefault();
+            
+            // Get coordinates relative to preview canvas
+            const previewRect = previewCanvas.getBoundingClientRect();
+            let pageX, pageY;
+            
+            if (e.type === 'touchmove') {
+                pageX = e.touches[0].pageX;
+                pageY = e.touches[0].pageY;
+            } else {
+                pageX = e.pageX;
+                pageY = e.pageY;
+            }
+            
+            // Calculate position relative to canvas
+            let x = (pageX - previewRect.left) * (previewCanvas.width / previewRect.width);
+            let y = (pageY - previewRect.top) * (previewCanvas.height / previewRect.height);
+            
+            // Constrain to canvas bounds with some padding
+            x = Math.max(10, Math.min(previewCanvas.width - 10, x));
+            y = Math.max(10, Math.min(previewCanvas.height - 10, y));
+            
+            // Update the corner position in our document corners object
+            window.detectedDocument[activeCorner] = { x, y };
+            
+            // Redraw corners
+            updateDocumentCornersDisplay(window.detectedDocument);
+            
+            // Re-initialize dragging since we redrew the handles
+            const cornerHandles = document.querySelectorAll('.corner-handle');
+            cornerHandles.forEach(handle => {
+                if (handle.getAttribute('data-corner') === activeCorner) {
+                    handle.setAttribute('stroke-width', '3');
+                    handle.setAttribute('r', '14');
+                }
+            });
+        }
+        
+        function stopDrag(e) {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            
+            // Remove event listeners
+            document.removeEventListener('mousemove', dragCorner);
+            document.removeEventListener('touchmove', dragCorner);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchend', stopDrag);
+            
+            // Reset handle styling
+            const activeHandle = document.querySelector(`.corner-handle[data-corner="${activeCorner}"]`);
+            if (activeHandle) {
+                activeHandle.setAttribute('stroke-width', '2');
+                activeHandle.setAttribute('r', '12');
+            }
+            
+            activeCorner = null;
+            
+            // Show message about corner adjustment
+            showAlert('Corner position updated. Adjust others if needed.', 'info', 2000);
+        }
     }
     
     // Fallback detection method
@@ -226,13 +330,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update document corners visualization
         updateDocumentCornersDisplay(window.detectedDocument);
         
+        // Add corner drag handlers
+        initCornerDragging();
+        
         // Show basic detection message
         if (documentDetectedMessage) {
-            documentDetectedMessage.innerHTML = '<i class="fa-solid fa-exclamation-circle"></i> Basic detection applied';
+            documentDetectedMessage.innerHTML = '<i class="fa-solid fa-arrows-up-down-left-right"></i> Adjust corners to fit document';
             documentDetectedMessage.style.backgroundColor = 'rgba(255, 125, 0, 0.5)';
         }
         
-        showAlert('Document detected using basic detection. Confirm or retake.', 'info');
+        showAlert('Adjust document corners for perfect alignment.', 'info');
     }
     
     // Process the detected document (when user confirms with checkmark)
@@ -245,15 +352,26 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show processing indicator
         showAlert('Processing document...', 'info');
         
-        // Let the app.js handle the document processing
-        // This is now handled via the button in app.js
-        
-        // Update workflow step
-        if (typeof updateWorkflowStep === 'function') {
-            updateWorkflowStep('process');
+        // Add scanning effect before processing
+        const previewContainer = document.querySelector('.preview-container');
+        if (previewContainer) {
+            previewContainer.classList.add('scan-active');
+            
+            // Let the app.js handle the document processing after scan effect
+            setTimeout(() => {
+                previewContainer.classList.remove('scan-active');
+                
+                // Update workflow step
+                if (typeof updateWorkflowStep === 'function') {
+                    updateWorkflowStep('process');
+                }
+            }, 1200);
+        } else {
+            // Update workflow step immediately if no container for effects
+            if (typeof updateWorkflowStep === 'function') {
+                updateWorkflowStep('process');
+            }
         }
-        
-        // No need to reset UI here as the app.js will handle downloading and resetting
     }
     
     // Handle retake button
