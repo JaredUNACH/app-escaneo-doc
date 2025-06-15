@@ -8,8 +8,44 @@
     <link rel="stylesheet" href="frontend/css/main.css">
     <link rel="stylesheet" href="frontend/css/responsive.css">
     <link rel="stylesheet" href="frontend/css/animations.css">
+    <!-- Add loading indicator styles -->
+    <style>
+        .opencv-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            flex-direction: column;
+        }
+        .opencv-loading .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #ff7d30;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
+    <!-- Add OpenCV loading indicator -->
+    <div id="opencv-loading" class="opencv-loading">
+        <div class="spinner"></div>
+        <p>Loading AI document detection...</p>
+    </div>
+
     <div class="app-container">
         <div class="floating-alert" id="app-alert">
             <i class="fa-solid fa-circle-info"></i>
@@ -88,18 +124,24 @@
             <section id="preview-section" class="section-card hidden">
                 <div class="section-header">
                     <h2><i class="fa-solid fa-eye"></i> Document Preview</h2>
-                    <p class="section-description">Review and confirm your document scan</p>
+                    <p class="section-description">Review the detected document</p>
                 </div>
                 <div class="preview-container">
                     <canvas id="preview-canvas"></canvas>
-                </div>
-                <div class="action-buttons">
-                    <button id="retake-button" class="btn btn-secondary">
-                        <i class="fa-solid fa-rotate-left"></i> Retake
-                    </button>
-                    <button id="process-button" class="btn btn-primary">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Process Document
-                    </button>
+                    <div class="document-detection-overlay">
+                        <div id="document-detected-message" class="document-detected-message">
+                            <i class="fa-solid fa-check-circle"></i> Document detected
+                        </div>
+                        <div id="document-corners" class="document-corners"></div>
+                    </div>
+                    <div class="preview-actions">
+                        <button id="retake-button" class="preview-action-button cancel">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                        <button id="confirm-button" class="preview-action-button confirm">
+                            <i class="fa-solid fa-check"></i>
+                        </button>
+                    </div>
                 </div>
             </section>
             
@@ -117,9 +159,18 @@
         </footer>
     </div>
     
+    <!-- Add OpenCV.js before your other scripts -->
+    <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <script>
+        function onOpenCvReady() {
+            console.log('OpenCV.js is ready');
+            document.getElementById('opencv-loading').style.display = 'none';
+            window.cvReady = true;
+        }
+    </script>
     <script src="frontend/js/app.js"></script>
-    <script src="frontend/js/camera.js"></script>
     <script src="frontend/js/document-detection.js"></script>
+    <script src="frontend/js/camera.js"></script>
     <script src="frontend/js/search.js"></script>
 </body>
 </html>

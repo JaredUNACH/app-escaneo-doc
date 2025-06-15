@@ -61,32 +61,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 bottomLeft: { x: 0, y: previewCanvas.height }
             };
             
-            // Create a new canvas for the processed document
-            const processedCanvas = document.createElement('canvas');
-            const ctx = processedCanvas.getContext('2d');
+            // Show processing indicator
+            showAlert('Processing document...', 'info');
             
-            // Set to A4 dimensions at 150 DPI
-            processedCanvas.width = 1240;
-            processedCanvas.height = 1754;
+            let processedCanvas;
             
-            // Draw white background
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, processedCanvas.width, processedCanvas.height);
-            
-            // Extract document from preview
-            const sourceWidth = docCorners.topRight.x - docCorners.topLeft.x;
-            const sourceHeight = docCorners.bottomLeft.y - docCorners.topLeft.y;
-            
-            // Draw the document with perspective correction
-            ctx.drawImage(
-                previewCanvas,
-                docCorners.topLeft.x, docCorners.topLeft.y, 
-                sourceWidth, sourceHeight,
-                0, 0, processedCanvas.width, processedCanvas.height
-            );
-            
-            // Apply some basic image enhancement
-            enhanceImage(processedCanvas);
+            // Use OpenCV for better results if available
+            if (window.documentDetection && window.documentDetection.isOpenCvReady()) {
+                // Use OpenCV's perspective correction
+                processedCanvas = window.documentDetection.correctPerspective(previewCanvas, docCorners);
+                
+                // Use OpenCV's document enhancement
+                processedCanvas = window.documentDetection.enhanceDocument(processedCanvas);
+            } else {
+                // Fallback to basic processing
+                processedCanvas = document.createElement('canvas');
+                const ctx = processedCanvas.getContext('2d');
+                
+                // Set to A4 dimensions
+                processedCanvas.width = 1240;
+                processedCanvas.height = 1754;
+                
+                // Draw white background
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, processedCanvas.width, processedCanvas.height);
+                
+                // Extract document from preview
+                const sourceWidth = docCorners.topRight.x - docCorners.topLeft.x;
+                const sourceHeight = docCorners.bottomLeft.y - docCorners.topLeft.y;
+                
+                // Draw the document with basic transformation
+                ctx.drawImage(
+                    previewCanvas,
+                    docCorners.topLeft.x, docCorners.topLeft.y, 
+                    sourceWidth, sourceHeight,
+                    0, 0, processedCanvas.width, processedCanvas.height
+                );
+                
+                // Apply basic enhancement
+                enhanceImage(processedCanvas);
+            }
             
             // Convert to JPEG data URL
             const imageData = processedCanvas.toDataURL('image/jpeg', config.imageQuality);
@@ -107,6 +121,16 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.removeChild(downloadLink);
             
             showAlert('Document saved to your device', 'success');
+            
+            // Reset UI after processing is complete
+            const previewSection = document.getElementById('preview-section');
+            const cameraSection = document.getElementById('camera-section');
+            
+            setTimeout(() => {
+                if (previewSection) previewSection.classList.add('hidden');
+                if (cameraSection) cameraSection.classList.remove('hidden');
+            }, 1500);
+            
         } catch (error) {
             console.error('Error saving document:', error);
             showAlert('Error saving document', 'error');

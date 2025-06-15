@@ -342,17 +342,17 @@ body {
     border-left: none;
     border-top: none;
 }
-
-/* Preview Styles */
+/* Adobe-style document scanner UI */
 .preview-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    background-color: #000;
+    margin-bottom: var(--space-lg);
     width: 100%;
     height: 0;
     padding-bottom: 75%;
-    position: relative;
-    background-color: var(--gray-200);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    margin-bottom: var(--space-lg);
 }
 
 #preview-canvas {
@@ -364,6 +364,86 @@ body {
     object-fit: contain;
 }
 
+.preview-actions {
+    position: absolute;
+    bottom: 24px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    z-index: 10;
+}
+
+.preview-action-button {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.preview-action-button:active {
+    transform: scale(0.95);
+}
+
+.preview-action-button.confirm {
+    background-color: var(--primary-orange);
+    color: white;
+}
+
+.preview-action-button.cancel {
+    background-color: white;
+    color: var(--text-dark);
+}
+
+.preview-action-button i {
+    font-size: 28px;
+}
+
+.document-detection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.document-detected-message {
+    position: absolute;
+    top: 16px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 8px;
+    border-radius: 20px;
+    margin: 0 auto;
+    width: fit-content;
+}
+/* Add animation for document detection */
+@keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+.document-corners {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 2px solid var(--primary-orange);
+    opacity: 0.7;
+    animation: pulse 2s infinite;
+}
 /* Button Styles */
 .action-buttons {
     display: flex;
